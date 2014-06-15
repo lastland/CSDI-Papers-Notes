@@ -1,0 +1,142 @@
+#+name: setup
+#+begin_src emacs-lisp :results silent :exports none
+   (unless (find "per-file-class" org-export-latex-classes :key 'car
+             :test 'equal)
+     (add-to-list 'org-latex-classes
+              '("IEEEtran"
+                "\\documentclass[9pt,conference]{IEEEtran}"
+                ("\\section{%s}" . "\\section*{%s}"))))
+#+end_src
+#+LaTeX_CLASS: IEEEtran
+* exokernel                                                          :export:
+** problems of traditional OS abstraction:
+1. denies domain-specific optimizations.
+2. discourages changes to implementations of existing abstractions.
+3. restricts the flexibility.
+(general-purpose implementations of abstractions force applications that do not need a given feature to pay substantial overhead costs.)
+
+** goal:                                                           :noexport:
+low-level interface, seperate protection from management
+(e.g. an exokernel should protect framebuffers without understanding file systems)
+(*how?* secure binding)
+
+** methods:
+secure binding, visible revocation, abort protocol
+
+/why not virtual machine?/ severe performance penalty
+
+** principles:                                                     :noexport:
+expose hardware (low-level primitives, be accessed as directly as possible),
+allocation (request specific physical resources),
+names (physical names: remove a level of indirection, efficient),
+revocation (visible revocation protocol) securely.
+
+
+** secure binding:
+decouples authorization from the actual use of a resource (seperate protection from management)
+*** requirement:                                                   :noexport:
+1, quick, 2, only at bind time;
+*** implementations:
+1, hardware mechanisims; 2, software caching; 3, downloading application code.
+(/benefits of downloading code/: 1, eliminate kernel crossings;
+2, execution time of downloaded code can be readily bounded (no need to be scheduled))
+
+** visible resource revocation                                     :noexport:
+visible for most resource; invisible better when frequent.
+
+** abort protocol                                                  :noexport:
+breaks all existing secure bindings to the resource and informs
+library OS if it fails to comply revocation protocols.
+
+* non-scalable lock                                                  :export:
+** problem of ticket lock:                                         :noexport:
+If many cores are waiting for a lock, they will have the lock cached.
+An unlock will invalidate those cache entries.
+
+** questions:                                                        :noexport:
+1. why so early?
+2. why so far?
+3. why so rapidly? (personally, I think the model just fails to predict this)
+
+** model:
+- $a$: avg lock acq time on single core.
+- $a_k = (n - k) / a$: arrival rate.
+- $s$: time in serial section.
+- $c$: time for home dir to respond to a cache line req.
+- $s_k = 1 / (s + ck / 2)$: service rate.
+If a large number of waiters, hard to go back.
+$s_k$ rapidly decays as $k$ grows, for short serial section. (ans to why so rapidly)
+
+** scalable locks:                                                 :noexport:
+1. Proportional backoff.
+2. Truly scalable lock. (usually maintains a queue of waiters)
+
+* learning from mistakes                                             :export:
+** methods:                                                        :noexport:
+105 randomly selected real world concurrency bug from 4 large and mature open-source application:
+MySQL, Apache, Mozilla, OpenOffice: on bug report, related patches, programmers' discussion.
+
+** bug pattern:
+1, Dead lock. 2, Atomicity violation. 3, Order violation. 4, Others.
+
+** fixing strategies:
+- non-deadlock: condition check(while-flag; consistency check); code switch;
+design change; lock (add/change; adjust cric sec regions); others.
+- deadlock: give up resource; split resource; change acq order.
+
+** observations:                                                   :noexport:
+*** threads involved:
+most no more than 2. why? most threads don't closely interact with many others,
+most communication is between two or a small group.
+*** variables involved:
+- non-deadlock: 66% only 1, 34% more than 1.
+- deadlock: 97% at most two resources.
+*** accesses involved:
+- 90% non-deadlock bugs can deterministically manifest if order among at most 4 mem accesses are enforced.
+- 97% deadlock, at most 4 resource acq/rel.
+
+* lfs                                                                :export:
+** assumption:                                                     :noexport:
+files are cached in main memory and that increasing memory sizes
+will make the caches more and more effective at satisfying read requests.
+
+** problems with existing FS:                                      :noexport:
+1. they spread information around the disk in a way that causes too many small accesses;
+2. they tend to write synchronously.
+
+** LFS:                                                            :noexport:
+log structure; buffer a sequence of FS changes in the file cache
+and then writing all the changes to disk sequentially in a single disk write operation.
+
+** challenges of LFS:                                                :noexport:
+1. how to retrive information from log;
+2. how to manage free space on disk so that large extents of free space are always available for writing new data.
+
+** cleaning                                                        :noexport:
+1. when? threshold.
+2. how many? threshold.
+3. which? write cost: 2/(1-u); benefit cost: (1-u)*age/(1+u). (cold: more valuable)
+4. how to group? better locality, worse performance.
+(/not fullly understood yet/)
+
+** structures
+*** inode map:
+Current location of each inode.
+_Blocks are written to log; addresses of blocks in checkpoint region._
+Almost always cached in main memory.
+
+*** segment usage table:
+1, the number of live bytes in the seg.
+2, most recent modified time of any block in the seg.
+Used by cleaner.
+_Blocks are written to log, addresses of blocks in checkpoint region._
+
+*** checkpoints:
+Special fixed position on disk.
+Addresses of all the blocks in inode map, seg usage table, current time, pointer to last seg written.
+Two checkpoint regions, operations alternate between them.
+Time: perriodically, when FS unmounted, system shut down.
+
+*** directory operation log:
+Operation code, location of dir entry (inum and pos within dir), contents (name and inum), new ref count.
+In log, before corresponding dir block or inode.
