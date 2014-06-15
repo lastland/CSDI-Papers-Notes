@@ -80,8 +80,7 @@ MySQL, Apache, Mozilla, OpenOffice: on bug report, related patches, programmers'
 1, Dead lock. 2, Atomicity violation. 3, Order violation. 4, Others.
 
 ** fixing strategies:
-- non-deadlock: condition check(while-flag; consistency check); code switch;
-design change; lock (add/change; adjust cric sec regions); others.
+- non-deadlock: condition check(while-flag; consistency check); code switch; design change; lock (add/change; adjust cric sec regions); others.
 - deadlock: give up resource; split resource; change acq order.
 
 ** observations:                                                   :noexport:
