@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>Notes</title>
-<!-- 2014-06-15 Sun 20:38 -->
+<!-- 2014-06-15 Sun 21:13 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <meta  name="author" content="lastland" />
@@ -200,14 +200,20 @@ for the JavaScript code in this tag.
 <li><a href="#sec-2-1">2.1. model:</a></li>
 </ul>
 </li>
-<li><a href="#sec-3">3. lfs</a>
+<li><a href="#sec-3">3. learning from mistakes</a>
 <ul>
-<li><a href="#sec-3-1">3.1. structures</a>
+<li><a href="#sec-3-1">3.1. bug pattern:</a></li>
+<li><a href="#sec-3-2">3.2. fixing strategies:</a></li>
+</ul>
+</li>
+<li><a href="#sec-4">4. lfs</a>
 <ul>
-<li><a href="#sec-3-1-1">3.1.1. inode map:</a></li>
-<li><a href="#sec-3-1-2">3.1.2. segment usage table:</a></li>
-<li><a href="#sec-3-1-3">3.1.3. checkpoints:</a></li>
-<li><a href="#sec-3-1-4">3.1.4. directory operation log:</a></li>
+<li><a href="#sec-4-1">4.1. structures</a>
+<ul>
+<li><a href="#sec-4-1-1">4.1.1. inode map:</a></li>
+<li><a href="#sec-4-1-2">4.1.2. segment usage table:</a></li>
+<li><a href="#sec-4-1-3">4.1.3. checkpoints:</a></li>
+<li><a href="#sec-4-1-4">4.1.4. directory operation log:</a></li>
 </ul>
 </li>
 </ul>
@@ -283,19 +289,45 @@ decouples authorization from the actual use of a resource (seperate protection f
 <li>\(s_k = 1 / (s + ck / 2)\): service rate.
 </li>
 </ul>
+<p>
+If a large number of waiters, hard to go back.
+\(s_k\) rapidly decays as \(k\) grows, for short serial section. (ans to why so rapidly)
+</p>
 </div>
 </div>
 </div>
-
 <div id="outline-container-sec-3" class="outline-2">
-<h2 id="sec-3"><span class="section-number-2">3</span> lfs</h2>
+<h2 id="sec-3"><span class="section-number-2">3</span> learning from mistakes</h2>
 <div class="outline-text-2" id="text-3">
 </div><div id="outline-container-sec-3-1" class="outline-3">
-<h3 id="sec-3-1"><span class="section-number-3">3.1</span> structures</h3>
+<h3 id="sec-3-1"><span class="section-number-3">3.1</span> bug pattern:</h3>
 <div class="outline-text-3" id="text-3-1">
-</div><div id="outline-container-sec-3-1-1" class="outline-4">
-<h4 id="sec-3-1-1"><span class="section-number-4">3.1.1</span> inode map:</h4>
-<div class="outline-text-4" id="text-3-1-1">
+<p>
+1, Dead lock. 2, Atomicity violation. 3, Order violation. 4, Others.
+</p>
+</div>
+</div>
+<div id="outline-container-sec-3-2" class="outline-3">
+<h3 id="sec-3-2"><span class="section-number-3">3.2</span> fixing strategies:</h3>
+<div class="outline-text-3" id="text-3-2">
+<ul class="org-ul">
+<li>non-deadlock: condition check(while-flag; consistency check); code switch; design change; lock (add/change; adjust cric sec regions); others.
+</li>
+<li>deadlock: give up resource; split resource; change acq order.
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="outline-container-sec-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> lfs</h2>
+<div class="outline-text-2" id="text-4">
+</div><div id="outline-container-sec-4-1" class="outline-3">
+<h3 id="sec-4-1"><span class="section-number-3">4.1</span> structures</h3>
+<div class="outline-text-3" id="text-4-1">
+</div><div id="outline-container-sec-4-1-1" class="outline-4">
+<h4 id="sec-4-1-1"><span class="section-number-4">4.1.1</span> inode map:</h4>
+<div class="outline-text-4" id="text-4-1-1">
 <p>
 Current location of each inode.
 <span class="underline">Blocks are written to log; addresses of blocks in checkpoint region.</span>
@@ -303,9 +335,9 @@ Almost always cached in main memory.
 </p>
 </div>
 </div>
-<div id="outline-container-sec-3-1-2" class="outline-4">
-<h4 id="sec-3-1-2"><span class="section-number-4">3.1.2</span> segment usage table:</h4>
-<div class="outline-text-4" id="text-3-1-2">
+<div id="outline-container-sec-4-1-2" class="outline-4">
+<h4 id="sec-4-1-2"><span class="section-number-4">4.1.2</span> segment usage table:</h4>
+<div class="outline-text-4" id="text-4-1-2">
 <p>
 1, the number of live bytes in the seg.
 2, most recent modified time of any block in the seg.
@@ -314,9 +346,9 @@ Used by cleaner.
 </p>
 </div>
 </div>
-<div id="outline-container-sec-3-1-3" class="outline-4">
-<h4 id="sec-3-1-3"><span class="section-number-4">3.1.3</span> checkpoints:</h4>
-<div class="outline-text-4" id="text-3-1-3">
+<div id="outline-container-sec-4-1-3" class="outline-4">
+<h4 id="sec-4-1-3"><span class="section-number-4">4.1.3</span> checkpoints:</h4>
+<div class="outline-text-4" id="text-4-1-3">
 <p>
 Special fixed position on disk.
 Addresses of all the blocks in inode map, seg usage table, current time, pointer to last seg written.
@@ -325,9 +357,9 @@ Time: perriodically, when FS unmounted, system shut down.
 </p>
 </div>
 </div>
-<div id="outline-container-sec-3-1-4" class="outline-4">
-<h4 id="sec-3-1-4"><span class="section-number-4">3.1.4</span> directory operation log:</h4>
-<div class="outline-text-4" id="text-3-1-4">
+<div id="outline-container-sec-4-1-4" class="outline-4">
+<h4 id="sec-4-1-4"><span class="section-number-4">4.1.4</span> directory operation log:</h4>
+<div class="outline-text-4" id="text-4-1-4">
 <p>
 Operation code, location of dir entry (inum and pos within dir), contents (name and inum), new ref count.
 In log, before corresponding dir block or inode.
@@ -339,7 +371,7 @@ In log, before corresponding dir block or inode.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: lastland</p>
-<p class="date">Created: 2014-06-15 Sun 20:38</p>
+<p class="date">Created: 2014-06-15 Sun 21:13</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.3.1 (<a href="http://orgmode.org">Org</a> mode 8.2.5c)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
