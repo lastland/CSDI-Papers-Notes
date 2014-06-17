@@ -238,3 +238,52 @@ increased driver complexity, less interface standardization.
 converting drivers from threads to event-based synchronization internally would simply such code.
 ** redundacy
 many opportunities. /methods/: 1. procedural abstractions; 2. better multiple chipset support; 3. table driven programming.
+* x86 virtualization                                                 :export:
+** VMM and hypervisor                                              :noexport:
+- *VMM*: an entity specifically responsible for virtualizaing a given architecture, including the instruction set, mem, interrupts, and basic I/O operations.
+- *hypervisor*: combines an OS with a VMM.
+** trap and emulate                                                :noexport:
+guest code runs directly on the CPU, with reduced privilege.
+the processor generates a trap that transfers control to the VMM
+when the guest attempts to read or modify priviledged state.
+** problems of x86 virtualization                                  :noexport:
+the processor could not be configured to generate the required traps. (e.g. /popf/)
+
+*solution*: binary translation.
+** shadow page table
+gVAs -> gPAs -> hPAs.
+shadow page table stores the composite mappings.
+/problems/:
+- hidden page faults on first access. /solution/: eager validate.
+- context switching flush the TLB. /solution/: make copies, traces (provide notifications upon access to pages of interest).
+- traces overheads. /solution/: not tracing.
+must balance among these three demands. but it is difficult and varies from workload to workload.
+** address space
+methods:
+1. page permission. /pros/: works well with trap-and-emulate; /cons/: not well for running translated guest kernel code.
+2. bounds check on every guest memory access. /cons/: significant overhead.
+3. segmentation.
+/problem/ of segmentation: must also emulate the guest's use of the same segmentation functionality.
+/solution/: place the VMM at top of the address space so that flat segments
+can be precisely "truncated" to prevent access to the VMM
+while allowing access to all remaining virtual addresses.
+** adaptive BT                                                     :noexport:
+caused by OS, instructions that modify page table always modify PTs
+and instructions do other things never modify PTs.
+VMM traks instructions that modify PTs and feed that information back into the translator,
+allowing creation of custom translations.
+** supporting multiprocessor VMs                                   :noexport:
+fail to understand...
+** virtualizing 64 bit x86
+problems:
+1. all segment registers but /%fs/ and /%gs/ were flattened: limit checks were removed -> could no longer use segmentation.
+2. the /lahf/ and /sahf/ instructions were removed from long mode (faster way to save and restore flags).
+** IS virtualization with hardware support: VT-x and AMD-V
+- virtual machine control block (VMCB): an in-memory data structure.
+- guest mode: a new, less priviledged execution mode.
+vmrun -> do something -> exit.
+/optimizations/: buffered exit.
+** memory virtualization with hardware support: RVI and EPT
+- nested page table: VMM, gPAs -> hPAs.
+- in guest mode, TLB: gVAs -> hPAs.
+/pros/: no exits. /cons/: cost of a TLB miss will be higher with nested page
