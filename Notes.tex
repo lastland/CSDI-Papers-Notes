@@ -1,0 +1,147 @@
+% Created 2014-06-17 Tue 21:33
+\documentclass[9pt,conference]{IEEEtran}
+                     \linespread{0.7}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\author{lastland}
+\date{\today}
+\title{Notes}
+\hypersetup{
+  pdfkeywords={},
+  pdfsubject={},
+  pdfcreator={Emacs 24.3.1 (Org mode 8.2.5c)}}
+\begin{document}
+
+\section{exokernel}
+\label{sec-1}
+\subsection{problems of traditional OS abstraction}
+\label{sec-1-1}
+\begin{enumerate}
+\item denies domain-specific optimizations.
+\item discourages changes to implementations of existing abstractions.
+\item restricts the flexibility.
+\end{enumerate}
+(general-purpose implementations of abstractions force applications that do not need a given feature to pay substantial overhead costs.)
+\subsection{methods}
+\label{sec-1-2}
+secure binding, visible revocation, abort protocol
+
+\emph{why not virtual machine?} severe performance penalty
+\subsection{secure binding}
+\label{sec-1-3}
+decouples authorization from the actual use of a resource (seperate protection from management)
+\begin{enumerate}
+\item implementations:
+\label{sec-1-3-1}
+1, hardware mechanisims; 2, software caching; 3, downloading application code.
+(\emph{benefits of downloading code}: 1, eliminate kernel crossings;
+2, execution time of downloaded code can be readily bounded (no need to be scheduled))
+\end{enumerate}
+\section{flashvm}
+\label{sec-2}
+\subsection{problems with flash}
+\label{sec-2-1}
+\begin{itemize}
+\item write amplification (rewrite multiple blocks). \emph{solution}: finer granularity write-back, stride prefetching, etc.
+\item low reliability (a finite number of times to be written). \emph{solution}: page sampling, zero page sharing.
+\item aging (fewer clean blocks). \emph{solution}: merged discard, dummy discard.
+\end{itemize}
+
+\subsection{performance}
+\label{sec-2-2}
+write locality because random reads are inexpensive;
+more aggressive pre-cleaning; clustering;
+much finer granularity page scanning;
+prefetch a full set of valid pages;
+stride prefetching for temporal locality.
+
+\section{non-scalable lock}
+\label{sec-3}
+\subsection{model}
+\label{sec-3-1}
+\begin{itemize}
+\item $a$: avg lock acq time on single core.
+\item $a_k = (n - k) / a$: arrival rate.
+\item $s$: time in serial section.
+\item $c$: time for home dir to respond to a cache line req.
+\item $s_k = 1 / (s + ck / 2)$: service rate.
+\end{itemize}
+If a large number of waiters, hard to go back.
+$s_k$ rapidly decays as $k$ grows, for short serial section. (ans to why so rapidly)
+\section{learning from mistakes}
+\label{sec-4}
+\subsection{bug pattern}
+\label{sec-4-1}
+1, Dead lock. 2, Atomicity violation. 3, Order violation. 4, Others.
+\subsection{fixing strategies}
+\label{sec-4-2}
+\begin{itemize}
+\item non-deadlock: condition check(while-flag; consistency check); code switch; design change; lock (add/change; adjust cric sec regions); others.
+\item deadlock: give up resource; split resource; change acq order.
+\end{itemize}
+\section{a file is not a file}
+\label{sec-5}
+\subsection{findings}
+\label{sec-5-1}
+\begin{itemize}
+\item \textbf{a file is not a file}: file -> small FS containing subfiles.
+\item \textbf{sequential access is not sequantial}: \emph{pure} is rare (substantial according to 4.2.2). more 95\% sequential.
+\item \textbf{auxiliary files dominate}: helper files
+\item \textbf{writes are often forced}: most explicitly synced (some frequently).
+\item \textbf{renaming is popular}: atomic operations are common, generally \emph{rename}.
+\item \textbf{multiple threads perform I/O}: virtually all from a number of threads (to hide long-latency operations from interactive users).
+\item \textbf{frameworks influence I/O}: the behavior of the framework, not just the application, determines I/O patterns.
+\item wide variety of file types, mostly multimedia files.
+\item apps tend to open many very small files, while most of the bytes accessed are in large files.
+\item preallocation is used rarely, or in useless way\ldots{}
+\end{itemize}
+
+\section{lfs}
+\label{sec-6}
+\subsection{structures}
+\label{sec-6-1}
+\begin{enumerate}
+\item inode map:
+\label{sec-6-1-1}
+Current location of each inode.
+\uline{Blocks are written to log; addresses of blocks in checkpoint region.}
+Almost always cached in main memory.
+\item segment usage table:
+\label{sec-6-1-2}
+1, the number of live bytes in the seg.
+2, most recent modified time of any block in the seg.
+Used by cleaner.
+\uline{Blocks are written to log, addresses of blocks in checkpoint region.}
+\item checkpoints:
+\label{sec-6-1-3}
+Special fixed position on disk.
+Addresses of all the blocks in inode map, seg usage table, current time, pointer to last seg written.
+Two checkpoint regions, operations alternate between them.
+Time: perriodically, when FS unmounted, system shut down.
+\item directory operation log:
+\label{sec-6-1-4}
+Operation code, location of dir entry (inum and pos within dir), contents (name and inum), new ref count.
+In log, before corresponding dir block or inode.
+\end{enumerate}
+
+\section{device driver}
+\label{sec-7}
+\subsection{redundacy}
+\label{sec-7-1}
+many opportunities. \emph{methods}: 1. procedural abstractions; 2. better multiple chipset support; 3. table driven programming.
+% Emacs 24.3.1 (Org mode 8.2.5c)
+\end{document}
