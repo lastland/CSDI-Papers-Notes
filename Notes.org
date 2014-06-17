@@ -1,38 +1,40 @@
 #+name: setup
 #+begin_src emacs-lisp :results silent :exports none
-   (unless (find "per-file-class" org-export-latex-classes :key 'car
-             :test 'equal)
-     (add-to-list 'org-latex-classes
-              '("IEEEtran"
-                "\\documentclass[9pt,conference]{IEEEtran}"
-                ("\\section{%s}" . "\\section*{%s}"))))
+       (unless (find "per-file-class" org-export-latex-classes :key 'car
+                 :test 'equal)
+         (add-to-list 'org-latex-classes
+                  '("IEEEtran"
+                    "\\documentclass[9pt,conference]{IEEEtran}
+                     \\linespread{0.7}"
+                    ("\\section{%s}" . "\\section*{%s}")
+                    ("\\subsection{%s}" . "\\subsection*{%s}"))))
 #+end_src
 #+LaTeX_CLASS: IEEEtran
 * exokernel                                                          :export:
-** problems of traditional OS abstraction:
+** problems of traditional OS abstraction
 1. denies domain-specific optimizations.
 2. discourages changes to implementations of existing abstractions.
 3. restricts the flexibility.
 (general-purpose implementations of abstractions force applications that do not need a given feature to pay substantial overhead costs.)
 
-** goal:                                                           :noexport:
+** goal                                                            :noexport:
 low-level interface, seperate protection from management
 (e.g. an exokernel should protect framebuffers without understanding file systems)
 (*how?* secure binding)
 
-** methods:
+** methods
 secure binding, visible revocation, abort protocol
 
 /why not virtual machine?/ severe performance penalty
 
-** principles:                                                     :noexport:
+** principles                                                      :noexport:
 expose hardware (low-level primitives, be accessed as directly as possible),
 allocation (request specific physical resources),
 names (physical names: remove a level of indirection, efficient),
 revocation (visible revocation protocol) securely.
 
 
-** secure binding:
+** secure binding
 decouples authorization from the actual use of a resource (seperate protection from management)
 *** requirement:                                                   :noexport:
 1, quick, 2, only at bind time;
@@ -48,17 +50,40 @@ visible for most resource; invisible better when frequent.
 breaks all existing secure bindings to the resource and informs
 library OS if it fails to comply revocation protocols.
 
+* flashvm                                                            :export:
+** why flash?                                                      :noexport:
+faster; smaller initial cost.
+** problems with flash
+- write amplification (rewrite multiple blocks). /solution/: finer granularity write-back, stride prefetching, etc.
+- low reliability (a finite number of times to be written). /solution/: page sampling, zero page sharing.
+- aging (fewer clean blocks). /solution/: merged discard, dummy discard.
+** performance
+write locality because random reads are inexpensive;
+more aggressive pre-cleaning; clustering;
+much finer granularity page scanning;
+prefetch a full set of valid pages;
+stride prefetching for temporal locality.
+** reliability                                                     :noexport:
+- *page sampling*: younger clean pages over dirty pages. skip dirty pages with probability.
+- *page sharing*: zero page sharing; intercept requests for all zero pages.
+** gc                                                              :noexport:
+*** merged discard
+1. reduce scanning swap map overhead.
+2. amortizes the fixed discard cost $c_0$ over multiple block address ranges.
+3. merged requests for fragmented and non-contiguous block ranges.
+*** dummy discard
+elides a discard operation if the block is likely to be overwritten soon.
 * non-scalable lock                                                  :export:
-** problem of ticket lock:                                         :noexport:
+** problem of ticket lock                                          :noexport:
 If many cores are waiting for a lock, they will have the lock cached.
 An unlock will invalidate those cache entries.
 
-** questions:                                                        :noexport:
+** questions                                                       :noexport:
 1. why so early?
 2. why so far?
 3. why so rapidly? (personally, I think the model just fails to predict this)
 
-** model:
+** model
 - $a$: avg lock acq time on single core.
 - $a_k = (n - k) / a$: arrival rate.
 - $s$: time in serial section.
@@ -67,23 +92,23 @@ An unlock will invalidate those cache entries.
 If a large number of waiters, hard to go back.
 $s_k$ rapidly decays as $k$ grows, for short serial section. (ans to why so rapidly)
 
-** scalable locks:                                                 :noexport:
+** scalable locks                                                  :noexport:
 1. Proportional backoff.
 2. Truly scalable lock. (usually maintains a queue of waiters)
 
 * learning from mistakes                                             :export:
-** methods:                                                        :noexport:
+** methods                                                         :noexport:
 105 randomly selected real world concurrency bug from 4 large and mature open-source application:
 MySQL, Apache, Mozilla, OpenOffice: on bug report, related patches, programmers' discussion.
 
-** bug pattern:
+** bug pattern
 1, Dead lock. 2, Atomicity violation. 3, Order violation. 4, Others.
 
-** fixing strategies:
+** fixing strategies
 - non-deadlock: condition check(while-flag; consistency check); code switch; design change; lock (add/change; adjust cric sec regions); others.
 - deadlock: give up resource; split resource; change acq order.
 
-** observations:                                                   :noexport:
+** observations                                                    :noexport:
 *** threads involved:
 most no more than 2. why? most threads don't closely interact with many others,
 most communication is between two or a small group.
@@ -94,20 +119,34 @@ most communication is between two or a small group.
 - 90% non-deadlock bugs can deterministically manifest if order among at most 4 mem accesses are enforced.
 - 97% deadlock, at most 4 resource acq/rel.
 
+* a file is not a file                                               :export:
+** target                                                          :noexport:
+home environment
+** findings
+- *a file is not a file*: file -> small FS containing subfiles.
+- *sequential access is not sequantial*: /pure/ is rare (substantial according to 4.2.2). more 95% sequential.
+- *auxiliary files dominate*: helper files
+- *writes are often forced*: most explicitly synced (some frequently).
+- *renaming is popular*: atomic operations are common, generally /rename/.
+- *multiple threads perform I/O*: virtually all from a number of threads (to hide long-latency operations from interactive users).
+- *frameworks influence I/O*: the behavior of the framework, not just the application, determines I/O patterns.
+- wide variety of file types, mostly multimedia files.
+- apps tend to open many very small files, while most of the bytes accessed are in large files.
+- preallocation is used rarely, or in useless way...
 * lfs                                                                :export:
-** assumption:                                                     :noexport:
+** assumption                                                      :noexport:
 files are cached in main memory and that increasing memory sizes
 will make the caches more and more effective at satisfying read requests.
 
-** problems with existing FS:                                      :noexport:
+** problems with existing FS                                       :noexport:
 1. they spread information around the disk in a way that causes too many small accesses;
 2. they tend to write synchronously.
 
-** LFS:                                                            :noexport:
+** LFS                                                             :noexport:
 log structure; buffer a sequence of FS changes in the file cache
 and then writing all the changes to disk sequentially in a single disk write operation.
 
-** challenges of LFS:                                                :noexport:
+** challenges of LFS                                               :noexport:
 1. how to retrive information from log;
 2. how to manage free space on disk so that large extents of free space are always available for writing new data.
 
@@ -139,3 +178,63 @@ Time: perriodically, when FS unmounted, system shut down.
 *** directory operation log:
 Operation code, location of dir entry (inum and pos within dir), contents (name and inum), new ref count.
 In log, before corresponding dir block or inode.
+* frangipani
+** assumptions                                                     :noexport:
+The machines are under a common administration and to be able to communicate securely.
+** advantages                                                      :noexport:
+1. easy to handle recovery, reconfig, load balancing.
+2. easier to use and administer.
+** features                                                        :noexport:
+1. consistent view of the same set of files.
+2. Add or remove servers easily.
+3. add new users easily.
+4. make full and consistent backup of the entire FS w/o bringing it down.
+5. tolerates and recovers from machine, network, disk failures w/o operator intervention.
+6. based on Petal.
+** logging and recovery                                            :noexport:
+- write-ahead redo logging for metadata; user data is not logged.
+- only after a log record is written to Petal does the server modify the actual metadata.
+- a write lock that covers dirty data can change owners only after the data has been written back to Petal.
+- version number for each log.
+- no guarantee that FS state is consistent after a failure.
+** synchronization                                                    :noexport:
+- multiple-reader/single-writer lock.
+- write lock holder must write dirty data to disk before releasing or downgrading.
+- on-disk structures -> logic segments; locks for each segment.
+- per-file lock granularity.
+- ordering locks and acquiring in two phases.
+** three approaches of lock service                                :noexport:
+- single centralized server. /problem/: lock service failure.
+- store lock state on Petal, write each lock state change through Petal before returning to client. /problem/: poor performance for common case.
+- a set of mutually cooperating lock servers and a clerk module linked into each Frangipani server.
+** backup                                                          :noexport:
+snapshot including all the logs.
+* device driver                                                      :export:
+** problems                                                        :noexport:
+1. what driver code does.
+2. how do drivers interact with the kernel, devices, and buses.
+3. new opportunities for abstracting driver functionality into common libraries or subsystems.
+** method                                                          :noexport:
+static analysis; tagging.
+** what do drivers do                                              :noexport:
+- the largest contributors to driver code are initialization and cleanup (36%).
+- driver code has increased by 185% for last 8 years.
+- while most driver functionality falls into the class behavior, many drivers have significant extensions that do not.
+- a substantial fraction of drivers do some form od data processing.
+** interactions                                                    :noexport:
+/with kernel/:
+- the majority of kernel invocations are for kernel library routines, memory management and synchronization.
+- very few calls into kernel services
+- calls into device library varies widely: w/ richer library support, a substantial number of calls.
+
+/with device/:
+the number and type of device interatcions vary widely based on their interaction style.
+
+/with bus/:
+flexibility and performance of PCI devices comes with a cost:
+increased driver complexity, less interface standardization.
+
+/concurrency/:
+converting drivers from threads to event-based synchronization internally would simply such code.
+** redundacy
+many opportunities. /methods/: 1. procedural abstractions; 2. better multiple chipset support; 3. table driven programming.
