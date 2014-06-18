@@ -320,3 +320,54 @@ using the tree traversal above the nodes determine if they have any differences 
 1. $T$ random tokens per node and partition by token value. /problems/: 1, scan on the backgrpound; 2, Merkle tree changes; 3, snapshot due to randomness in key ranges, complicated archival.
 2. $T$ random tokens per node and equal sized partitions.
 3. $Q/S$ tokens per node, equal-sized partitions. /pros/: 1, efficiency; 2, faster bootstraping/recovery; 3, ease of archival.
+* demand-based co-scheduling                                         :export:
+** uncoordinated vs. coordinated scheduling
+*uncoordinated scheduling*, also called local scheduling, allows
+each per-CPU scheduler to make its own decision on time-sharing
+among its assigned threads without any coordination with threads
+on other CPUs.
+/pros/: high throughput, low overheads.
+/cons/: ineffective for communicating workloads.
+
+*coscheduling* is a representative scheme of coordinated scheduling
+that allows cooperative threads to be synchronously scheduled and descheduled.
+/cons/: CPU fragmentation, since cooperative threads cannot be
+scheduled until thier required CPUs are all available.
+/ineffective/ utilization with sequential workloads.
+
+*demand-based coscheduling* dynamically initiates coscheduling
+only for communicating threads,
+whereas non-communicating ones are managed in an uncoordinated fashion.
+
+** problems on SMP VMs                                             :noexport:
+OSes typically make liberal use of spin-based synchronization primitives (e.g. spinlocks)
+to protect short critical sections. can be suspended by an underlying hypervisor scheduler.
+
+** demand-based coscheduling
+*TLB shootdown* is a kernel-level operation for TLB synchronization via inter-CPU (inter-vCPU) communication.
+OSes use an IPI to notify a remote CPU of TLB invalidation.
+a busy-waiting vCPU could consume excessive CPU cycles if one of the recipient vCPUs is not immediately scheduled.
+-> a TLB shootdown IPI is regarded as a performance-critical signal of inter-vCPU communication that needs to be urgently handled.
+
+*excessive lock spinning*: a vCPU that is holding a spinlock is involuntarily descheduled before releasing it.
+happens in the workloads with a large traffic of inter-vCPU communication, especially reschedule IPIs.
+*a reschedule IPI* is used to notify a remote CPU of the availability of a thread newly awakened by a local CPU.
+the hypervisor can delay the preemption of a vCPU that initiates a reschedule IPI when another vCPU makes a preemption attempt.
+
+user-level synchronization typically employs block or spin-then-block based primitives, communication between threads can be recognized as reschedule IPIs by the hypervisor.
+its recipient vCPU can be coscheduled to alle- viate inefficient or unnecessary user-level contention.
+
+urgent request: *urgent queue*.
+a corresponding vCPU can request to enter urgent state in two ways: 1) event-based and 2) time-based requests.
+*the event-based request* is used for a vCPU to be retained in urgent state until pending urgent events are all acknowledged.
+used for TLB shootdown.
+*the time-based request* allows an IPI to specify a time during which a corresponding vCPU can run in urgent state.
+used for reschedule IPI.
+
+** load-conscious balance scheduling
+*uncoordinated*: evenly. lazy algorithms to balance global loads to avoid ineffecient use of hardware.
+*coscheduling*: assign sibling vCPUs onto different pCPUs in order to prevent them from time-sharing a pCPU.
+could degrade synchroniza- tion latency if pCPU loads are imbalanced at the moment of assignment.
+*vCPU stacking*: the time-sharing of sibling vCPUs.
+/solution/: selectively allows vCPU stacking in the case where the balance scheduling can aggravate load imbalance.
+by checking if the load of each pCPU is higher than the average load of all pCPUs.
