@@ -1,13 +1,21 @@
 #+name: setup
 #+begin_src emacs-lisp :results silent :exports none
-       (unless (find "per-file-class" org-export-latex-classes :key 'car
-                 :test 'equal)
-         (add-to-list 'org-latex-classes
-                  '("IEEEtran"
-                    "\\documentclass[9pt,conference]{IEEEtran}
-                     \\linespread{0.7}"
-                    ("\\section{%s}" . "\\section*{%s}")
-                    ("\\subsection{%s}" . "\\subsection*{%s}"))))
+         (unless (find "per-file-class" org-export-latex-classes :key 'car
+                   :test 'equal)
+           (add-to-list 'org-latex-classes
+                    '("IEEEtran"
+                      "\\documentclass[9pt,conference]{IEEEtran}
+  \\linespread{0.7}
+  \\addtolength{\\topmargin}{-10mm}
+  \\addtolength{\\textheight}{20mm}
+  \\addtolength{\\textwidth}{15mm}
+  \\addtolength{\\oddsidemargin}{-10mm}
+  \\addtolength{\\evensidemargin}{-10mm}
+  \\addtolength{\\topskip}{-10mm}
+  \\addtolength{\\parindent}{-5mm}
+  \\addtolength{\\parskip}{-1mm}"
+                      ("\\section{%s}" . "\\section*{%s}")
+                      ("\\subsection{%s}" . "\\subsection*{%s}"))))
 #+end_src
 #+LaTeX_CLASS: IEEEtran
 * exokernel                                                          :export:
