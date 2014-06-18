@@ -287,3 +287,36 @@ vmrun -> do something -> exit.
 - nested page table: VMM, gPAs -> hPAs.
 - in guest mode, TLB: gVAs -> hPAs.
 /pros/: no exits. /cons/: cost of a TLB miss will be higher with nested page
+* dynamo                                                             :export:
+** design considerations                                           :noexport:
+incremental scalability, symmetry, decentralization, heterogeneity.
+** partitioning algorithm
+*consistent hashing*: the output range of a hash function is treated as
+a fixed circular space or "ring".
+each node in the system is assigned a random value within this space
+which represents its "position" on the ring.
+/problems/: 1, non-uniform; 2, oblivious to heterogeneity.
+/solution/: vritual nodes.
+** replication
+each data item is replicated at $N$ hosts.
+each key $k$ is assigned to a coordinator node.
+*preference list*: the list of nodes that is responsible for storing a particular key.
+** data versioning
+vector clock.
+/problems/: size, but writes are usually handled by one of the top $N$ nodes, not likely.
+** quorum
+$R$ and $W$. $R + W > N$.
+$W$ is the minimum number of nodes that must participate in a successful write operation.
+(high availability: $W = 1$)
+** sloppy quorum
+all read and write operations are performed on the first $N$ /healthy/ nodes from the preference list.
+** Merkle tree
+a Merkle tree is a hash tree where leaves are hashes of the values of individual keys.
+parent nodes higher in the tree are hashes of their respective children.
+two nodes exchange the root of Merkle tree corresponding to the key ranges that
+they host in common. subsequently,
+using the tree traversal above the nodes determine if they have any differences and perform appropriate synchronization action.
+** partition strategies
+1. $T$ random tokens per node and partition by token value. /problems/: 1, scan on the backgrpound; 2, Merkle tree changes; 3, snapshot due to randomness in key ranges, complicated archival.
+2. $T$ random tokens per node and equal sized partitions.
+3. $Q/S$ tokens per node, equal-sized partitions. /pros/: 1, efficiency; 2, faster bootstraping/recovery; 3, ease of archival.
