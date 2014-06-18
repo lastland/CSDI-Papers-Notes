@@ -186,7 +186,7 @@ Time: perriodically, when FS unmounted, system shut down.
 *** directory operation log:
 Operation code, location of dir entry (inum and pos within dir), contents (name and inum), new ref count.
 In log, before corresponding dir block or inode.
-* frangipani
+* frangipani                                                         :export:
 ** assumptions                                                     :noexport:
 The machines are under a common administration and to be able to communicate securely.
 ** advantages                                                      :noexport:
@@ -199,13 +199,13 @@ The machines are under a common administration and to be able to communicate sec
 4. make full and consistent backup of the entire FS w/o bringing it down.
 5. tolerates and recovers from machine, network, disk failures w/o operator intervention.
 6. based on Petal.
-** logging and recovery                                            :noexport:
+** logging and recovery
 - write-ahead redo logging for metadata; user data is not logged.
 - only after a log record is written to Petal does the server modify the actual metadata.
 - a write lock that covers dirty data can change owners only after the data has been written back to Petal.
 - version number for each log.
 - no guarantee that FS state is consistent after a failure.
-** synchronization                                                    :noexport:
+** synchronization
 - multiple-reader/single-writer lock.
 - write lock holder must write dirty data to disk before releasing or downgrading.
 - on-disk structures -> logic segments; locks for each segment.
