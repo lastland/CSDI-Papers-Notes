@@ -25,6 +25,16 @@
 3. restricts the flexibility.
 (general-purpose implementations of abstractions force applications that do not need a given feature to pay substantial overhead costs.)
 
+** microkernel
+/benefits/: easier to extend a microkernel;
+easier to port the operating system to new architectures;
+more reliable (less code is running in kernel mode); more secure.
+/detriments/:
+performance overhead of user space to kernel space communication
+** comparing with microkernel
+- m do not allow untrusted application software to define specialized IPC primitives because virtual memory and message passing services are implemented by the kernel and trusted servers.
+- many abstractions, such as page-table structures and process abstractions, cannot be modified in microkernels.
+- many of the hardware resources in microkernel systems, such as the network, screen, and disk, are encapsulated in heavyweight servers that cannot be bypassed or tailored to application-specific needs.
 ** goal                                                            :noexport:
 low-level interface, seperate protection from management
 (e.g. an exokernel should protect framebuffers without understanding file systems)
@@ -41,7 +51,6 @@ allocation (request specific physical resources),
 names (physical names: remove a level of indirection, efficient),
 revocation (visible revocation protocol) securely.
 
-
 ** secure binding
 decouples authorization from the actual use of a resource (seperate protection from management)
 *** requirement:                                                   :noexport:
@@ -57,6 +66,7 @@ visible for most resource; invisible better when frequent.
 ** abort protocol                                                  :noexport:
 breaks all existing secure bindings to the resource and informs
 library OS if it fails to comply revocation protocols.
+
 
 * flashvm                                                            :export:
 ** why flash?                                                      :noexport:
@@ -127,6 +137,12 @@ most communication is between two or a small group.
 - 90% non-deadlock bugs can deterministically manifest if order among at most 4 mem accesses are enforced.
 - 97% deadlock, at most 4 resource acq/rel.
 
+** lockset algorithm
+1. Let locks_held($t$) be the set of locks held by thread $t$.
+2. For each $v$, initialize $C(v)$ to the set of all locks
+3. On each access to $v$ by thread $t$, set $C(v):= C(v) /cap locks_held(t)$. if $C(v)=/emptyset$, then issue a warning
+/pros/: more efficient way to detect data race. predict data race that have not manifest.
+/cons/: exists report false positive (e.g. memory reuse), lLimits the synchronization method to lock.
 * a file is not a file                                               :export:
 ** target                                                          :noexport:
 home environment
