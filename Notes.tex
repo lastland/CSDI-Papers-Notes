@@ -1,6 +1,14 @@
-% Created 2014-06-17 Tue 21:33
+% Created 2014-06-18 Wed 22:46
 \documentclass[9pt,conference]{IEEEtran}
-                     \linespread{0.7}
+  \linespread{0.1}
+  \addtolength{\topmargin}{-10mm}
+  \addtolength{\textheight}{20mm}
+  \addtolength{\textwidth}{15mm}
+  \addtolength{\oddsidemargin}{-10mm}
+  \addtolength{\evensidemargin}{-10mm}
+  \addtolength{\topskip}{-10mm}
+  \addtolength{\parindent}{-5mm}
+  \addtolength{\parskip}{-1mm}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{fixltx2e}
@@ -36,21 +44,38 @@
 \item restricts the flexibility.
 \end{enumerate}
 (general-purpose implementations of abstractions force applications that do not need a given feature to pay substantial overhead costs.)
-\subsection{methods}
+\subsection{microkernel}
 \label{sec-1-2}
+\emph{benefits}: easier to extend a microkernel;
+easier to port the operating system to new architectures;
+more reliable (less code is running in kernel mode); more secure.
+\emph{detriments}:
+performance overhead of user space to kernel space communication
+
+\subsection{comparing with microkernel}
+\label{sec-1-3}
+\begin{itemize}
+\item m do not allow untrusted application software to define specialized IPC primitives because virtual memory and message passing services are implemented by the kernel and trusted servers.
+\item many abstractions, such as page-table structures and process abstractions, cannot be modified in microkernels.
+\item many of the hardware resources in microkernel systems, such as the network, screen, and disk, are encapsulated in heavyweight servers that cannot be bypassed or tailored to application-specific needs.
+\end{itemize}
+
+\subsection{methods}
+\label{sec-1-4}
 secure binding, visible revocation, abort protocol
 
 \emph{why not virtual machine?} severe performance penalty
 \subsection{secure binding}
-\label{sec-1-3}
+\label{sec-1-5}
 decouples authorization from the actual use of a resource (seperate protection from management)
 \begin{enumerate}
 \item implementations:
-\label{sec-1-3-1}
+\label{sec-1-5-1}
 1, hardware mechanisims; 2, software caching; 3, downloading application code.
 (\emph{benefits of downloading code}: 1, eliminate kernel crossings;
 2, execution time of downloaded code can be readily bounded (no need to be scheduled))
 \end{enumerate}
+
 \section{flashvm}
 \label{sec-2}
 \subsection{problems with flash}
@@ -93,6 +118,16 @@ $s_k$ rapidly decays as $k$ grows, for short serial section. (ans to why so rapi
 \item non-deadlock: condition check(while-flag; consistency check); code switch; design change; lock (add/change; adjust cric sec regions); others.
 \item deadlock: give up resource; split resource; change acq order.
 \end{itemize}
+\subsection{lockset algorithm}
+\label{sec-4-3}
+\begin{enumerate}
+\item Let locks$_{\text{held}}$($t$) be the set of locks held by thread $t$.
+\item For each $v$, initialize $C(v)$ to the set of all locks
+\item On each access to $v$ by thread $t$, set $C(v):= C(v) /cap locks_held(t)$. if $C(v)=/emptyset$, then issue a warning
+\end{enumerate}
+\emph{pros}: more efficient way to detect data race. predict data race that have not manifest.
+\emph{cons}: exists report false positive (e.g. memory reuse), lLimits the synchronization method to lock.
+
 \section{a file is not a file}
 \label{sec-5}
 \subsection{findings}
@@ -138,10 +173,237 @@ Operation code, location of dir entry (inum and pos within dir), contents (name 
 In log, before corresponding dir block or inode.
 \end{enumerate}
 
-\section{device driver}
+\section{frangipani}
 \label{sec-7}
-\subsection{redundacy}
+\subsection{logging and recovery}
 \label{sec-7-1}
+\begin{itemize}
+\item write-ahead redo logging for metadata; user data is not logged.
+\item only after a log record is written to Petal does the server modify the actual metadata.
+\item a write lock that covers dirty data can change owners only after the data has been written back to Petal.
+\item version number for each log.
+\item no guarantee that FS state is consistent after a failure.
+\end{itemize}
+
+\subsection{synchronization}
+\label{sec-7-2}
+\begin{itemize}
+\item multiple-reader/single-writer lock.
+\item write lock holder must write dirty data to disk before releasing or downgrading.
+\item on-disk structures -> logic segments; locks for each segment.
+\item per-file lock granularity.
+\item ordering locks and acquiring in two phases.
+\end{itemize}
+
+\section{device driver}
+\label{sec-8}
+\subsection{redundacy}
+\label{sec-8-1}
 many opportunities. \emph{methods}: 1. procedural abstractions; 2. better multiple chipset support; 3. table driven programming.
+
+\section{x86 virtualization}
+\label{sec-9}
+\subsection{shadow page table}
+\label{sec-9-1}
+gVAs -> gPAs -> hPAs.
+shadow page table stores the composite mappings.
+\emph{problems}:
+\begin{itemize}
+\item hidden page faults on first access. \emph{solution}: eager validate.
+\item context switching flush the TLB. \emph{solution}: make copies, traces (provide notifications upon access to pages of interest).
+\item traces overheads. \emph{solution}: not tracing.
+\end{itemize}
+must balance among these three demands. but it is difficult and varies from workload to workload.
+
+\subsection{address space}
+\label{sec-9-2}
+methods:
+\begin{enumerate}
+\item page permission. \emph{pros}: works well with trap-and-emulate; \emph{cons}: not well for running translated guest kernel code.
+\item bounds check on every guest memory access. \emph{cons}: significant overhead.
+\item segmentation.
+\end{enumerate}
+\emph{problem} of segmentation: must also emulate the guest's use of the same segmentation functionality.
+\emph{solution}: place the VMM at top of the address space so that flat segments
+can be precisely "truncated" to prevent access to the VMM
+while allowing access to all remaining virtual addresses.
+
+\subsection{virtualizing 64 bit x86}
+\label{sec-9-3}
+problems:
+\begin{enumerate}
+\item all segment registers but \emph{\%fs} and \emph{\%gs} were flattened: limit checks were removed -> could no longer use segmentation.
+\item the \emph{lahf} and \emph{sahf} instructions were removed from long mode (faster way to save and restore flags).
+\end{enumerate}
+
+\subsection{IS virtualization with hardware support: VT-x and AMD-V}
+\label{sec-9-4}
+\begin{itemize}
+\item virtual machine control block (VMCB): an in-memory data structure.
+\item guest mode: a new, less priviledged execution mode.
+\end{itemize}
+vmrun -> do something -> exit.
+\emph{optimizations}: buffered exit.
+
+\subsection{memory virtualization with hardware support: RVI and EPT}
+\label{sec-9-5}
+\begin{itemize}
+\item nested page table: VMM, gPAs -> hPAs.
+\item in guest mode, TLB: gVAs -> hPAs.
+\end{itemize}
+\emph{pros}: no exits. \emph{cons}: cost of a TLB miss will be higher with nested page
+
+\section{dynamo}
+\label{sec-10}
+\subsection{partitioning algorithm}
+\label{sec-10-1}
+\textbf{consistent hashing}: the output range of a hash function is treated as
+a fixed circular space or "ring".
+each node in the system is assigned a random value within this space
+which represents its "position" on the ring.
+\emph{problems}: 1, non-uniform; 2, oblivious to heterogeneity.
+\emph{solution}: vritual nodes.
+
+\subsection{replication}
+\label{sec-10-2}
+each data item is replicated at $N$ hosts.
+each key $k$ is assigned to a coordinator node.
+\textbf{preference list}: the list of nodes that is responsible for storing a particular key.
+
+\subsection{data versioning}
+\label{sec-10-3}
+vector clock.
+\emph{problems}: size, but writes are usually handled by one of the top $N$ nodes, not likely.
+
+\subsection{quorum}
+\label{sec-10-4}
+$R$ and $W$. $R + W > N$.
+$W$ is the minimum number of nodes that must participate in a successful write operation.
+(high availability: $W = 1$)
+
+\subsection{sloppy quorum}
+\label{sec-10-5}
+all read and write operations are performed on the first $N$ \emph{healthy} nodes from the preference list.
+
+\subsection{Merkle tree}
+\label{sec-10-6}
+a Merkle tree is a hash tree where leaves are hashes of the values of individual keys.
+parent nodes higher in the tree are hashes of their respective children.
+two nodes exchange the root of Merkle tree corresponding to the key ranges that
+they host in common. subsequently,
+using the tree traversal above the nodes determine if they have any differences and perform appropriate synchronization action.
+
+\subsection{partition strategies}
+\label{sec-10-7}
+\begin{enumerate}
+\item $T$ random tokens per node and partition by token value. \emph{problems}: 1, scan on the backgrpound; 2, Merkle tree changes; 3, snapshot due to randomness in key ranges, complicated archival.
+\item $T$ random tokens per node and equal sized partitions.
+\item $Q/S$ tokens per node, equal-sized partitions. \emph{pros}: 1, efficiency; 2, faster bootstraping/recovery; 3, ease of archival.
+\end{enumerate}
+
+\section{demand-based co-scheduling}
+\label{sec-11}
+\subsection{uncoordinated vs. coordinated scheduling}
+\label{sec-11-1}
+\textbf{uncoordinated scheduling}, also called local scheduling, allows
+each per-CPU scheduler to make its own decision on time-sharing
+among its assigned threads without any coordination with threads
+on other CPUs.
+\emph{pros}: high throughput, low overheads.
+\emph{cons}: ineffective for communicating workloads.
+
+\textbf{coscheduling} is a representative scheme of coordinated scheduling
+that allows cooperative threads to be synchronously scheduled and descheduled.
+\emph{cons}: CPU fragmentation, since cooperative threads cannot be
+scheduled until thier required CPUs are all available.
+\emph{ineffective} utilization with sequential workloads.
+
+\textbf{demand-based coscheduling} dynamically initiates coscheduling
+only for communicating threads,
+whereas non-communicating ones are managed in an uncoordinated fashion.
+\subsection{demand-based coscheduling}
+\label{sec-11-2}
+\textbf{TLB shootdown} is a kernel-level operation for TLB synchronization via inter-CPU (inter-vCPU) communication.
+OSes use an IPI to notify a remote CPU of TLB invalidation.
+a busy-waiting vCPU could consume excessive CPU cycles if one of the recipient vCPUs is not immediately scheduled.
+-> a TLB shootdown IPI is regarded as a performance-critical signal of inter-vCPU communication that needs to be urgently handled.
+
+\textbf{excessive lock spinning}: a vCPU that is holding a spinlock is involuntarily descheduled before releasing it.
+happens in the workloads with a large traffic of inter-vCPU communication, especially reschedule IPIs.
+\textbf{a reschedule IPI} is used to notify a remote CPU of the availability of a thread newly awakened by a local CPU.
+the hypervisor can delay the preemption of a vCPU that initiates a reschedule IPI when another vCPU makes a preemption attempt.
+
+user-level synchronization typically employs block or spin-then-block based primitives, communication between threads can be recognized as reschedule IPIs by the hypervisor.
+its recipient vCPU can be coscheduled to alle- viate inefficient or unnecessary user-level contention.
+
+urgent request: \textbf{urgent queue}.
+a corresponding vCPU can request to enter urgent state in two ways: 1) event-based and 2) time-based requests.
+\textbf{the event-based request} is used for a vCPU to be retained in urgent state until pending urgent events are all acknowledged.
+used for TLB shootdown.
+\textbf{the time-based request} allows an IPI to specify a time during which a corresponding vCPU can run in urgent state.
+used for reschedule IPI.
+\subsection{load-conscious balance scheduling}
+\label{sec-11-3}
+\textbf{uncoordinated}: evenly. lazy algorithms to balance global loads to avoid ineffecient use of hardware.
+\textbf{coscheduling}: assign sibling vCPUs onto different pCPUs in order to prevent them from time-sharing a pCPU.
+could degrade synchroniza- tion latency if pCPU loads are imbalanced at the moment of assignment.
+\textbf{vCPU stacking}: the time-sharing of sibling vCPUs.
+\emph{solution}: selectively allows vCPU stacking in the case where the balance scheduling can aggravate load imbalance.
+by checking if the load of each pCPU is higher than the average load of all pCPUs.
+
+\section{cloud security}
+\label{sec-12}
+\subsection{probing}
+\label{sec-12-1}
+A probe is \textbf{external} when it originates from a system outside EC2 and has destination an EC2 instance.
+A probe is \textbf{internal} if it originates from an EC2 instance and has destination another EC2 instance.
+\textbf{co-residence}: instances that are running on the same physical machine as being co-resident.
+instances are likely co-resident if they have:
+\begin{enumerate}
+\item matching Dom0 IP address,
+\item small packet round-trip times, or
+\item numerically close internal IP addresses (e.g. within 7).
+\end{enumerate}
+
+\subsection{solution to placement:}
+\label{sec-12-2}
+let users request placement of their VMs on machines that can only be populated by VMs from their (or other trusted) accounts. In exchange, the users can pay the opportunity cost of leaving some of these machines under-utilized.
+
+\subsection{side-channel attack}
+\label{sec-12-3}
+\textbf{Prime+Trigger+Probe} measurement:
+the probing instance first allocates a contiguous buffer $B$ of $b$ bytes
+($b$ should be large enough that a significant portion of the cache is filled by $B$).
+let $s$ be the cache line size, in bytes.
+\begin{enumerate}
+\item \textbf{Prime}: Read $B$ at $s$-byte offsets in order to ensure it is cached.
+\item \textbf{Trigger}: Busy-loop until the CPU’s cycle counter jumps by a large value. (This means our VM was preempted by
+\end{enumerate}
+the Xen scheduler, hopefully in favor of the sender VM.)
+\begin{enumerate}
+\item \textbf{Probe}: Measure the time it takes to again read $B$ at $s$-byte offsets.
+\end{enumerate}
+the time of the final step’s read is the load sample,
+measured in number of CPU cycles.
+these load samples will be strongly correlated with use of the cache during
+the trigger step, since that usage will evict some portion of the buffer $B$
+and thereby drive up the read time during the probe phase.
+
+\textbf{covert channel}:
+\begin{itemize}
+\item $a$: larger than the attacked cache level (e.g., $a = 2^{21}$ to attack the EC2’s Opteron L2 cache).
+\item $b$: slightly smaller than the attacked cache level (here, $b = 2^{19}$),
+\item $d$: the cache line size times a power of 2.
+\item even addresses: (resp. odd addresses)  those that are equal to $0$ mod $2d$ (resp. $d$ mod $2d$)
+\item the class of even cache sets (resp. odd cache sets): cache sets to which even (resp. odd) addresses are mapped.
+\end{itemize}
+steps:
+\begin{enumerate}
+\item allocate a contiguous buffer $B$ of b bytes
+\item sleep briefly (to build up credit with Xen’s scheduler).
+\item prime: read all of $B$ to make sure it’s fully cached
+\item trigger: busy-loop until the CPU’s cycle counter jumps by a large value. (This means our VM was preempted by the Xen scheduler, hopefully in favor of the sender VM.)
+\item probe: measure the time it takes to read all even ad- dresses in $B$, likewise for the odd addresses. Decide “0” iff the difference is positive.
+\end{enumerate}
 % Emacs 24.3.1 (Org mode 8.2.5c)
 \end{document}
