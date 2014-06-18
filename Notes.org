@@ -5,7 +5,7 @@
            (add-to-list 'org-latex-classes
                     '("IEEEtran"
                       "\\documentclass[9pt,conference]{IEEEtran}
-  \\linespread{0.7}
+  \\linespread{0.1}
   \\addtolength{\\topmargin}{-10mm}
   \\addtolength{\\textheight}{20mm}
   \\addtolength{\\textwidth}{15mm}
