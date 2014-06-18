@@ -379,3 +379,53 @@ could degrade synchroniza- tion latency if pCPU loads are imbalanced at the mome
 *vCPU stacking*: the time-sharing of sibling vCPUs.
 /solution/: selectively allows vCPU stacking in the case where the balance scheduling can aggravate load imbalance.
 by checking if the load of each pCPU is higher than the average load of all pCPUs.
+* cloud security                                                     :export:
+** threat model                                                    :noexport:
+consider the provider and its infrastructure to be trusted.
+an attaker on the same physical machine. manipulate shared physical resources to learn otherwise confidential information.
+** probing
+A probe is *external* when it originates from a system outside EC2 and has destination an EC2 instance.
+A probe is *internal* if it originates from an EC2 instance and has destination another EC2 instance.
+*co-residence*: instances that are running on the same physical machine as being co-resident.
+instances are likely co-resident if they have:
+1. matching Dom0 IP address,
+2. small packet round-trip times, or
+3. numerically close internal IP addresses (e.g. within 7).
+** placement                                                       :noexport:
+/background/:
+- a single account was never seen to have two instances simultaneously running on the same physical machine.
+- no more than eight m1.small instances were ever observed to be simultaneously co-resident.
+- sequential placement locality exists when two instances run sequentially (the first terminated before launching the second) are often assigned to the same machine.
+- Parallel placement locality exists when two instances run (from distinct accounts) at roughly the same time are often assigned to the same machine.
+/strategies/:
+- *brute-force strategy*: simply launch many instances over a relatively long period of time.
+- a more refined strategy has the attacker target recently-launched instances.
+** solution to placement:
+let users request placement of their VMs on machines that can only be populated by VMs from their (or other trusted) accounts. In exchange, the users can pay the opportunity cost of leaving some of these machines under-utilized.
+** side-channel attack
+*Prime+Trigger+Probe* measurement:
+the probing instance first allocates a contiguous buffer $B$ of $b$ bytes
+($b$ should be large enough that a significant portion of the cache is filled by $B$).
+let $s$ be the cache line size, in bytes.
+1. *Prime*: Read $B$ at $s$-byte offsets in order to ensure it is cached.
+2. *Trigger*: Busy-loop until the CPU’s cycle counter jumps by a large value. (This means our VM was preempted by
+the Xen scheduler, hopefully in favor of the sender VM.)
+3. *Probe*: Measure the time it takes to again read $B$ at $s$-byte offsets.
+the time of the final step’s read is the load sample,
+measured in number of CPU cycles.
+these load samples will be strongly correlated with use of the cache during
+the trigger step, since that usage will evict some portion of the buffer $B$
+and thereby drive up the read time during the probe phase.
+
+*covert channel*:
+- $a$: larger than the attacked cache level (e.g., $a = 2^{21}$ to attack the EC2’s Opteron L2 cache).
+- $b$: slightly smaller than the attacked cache level (here, $b = 2^{19}$),
+- $d$: the cache line size times a power of 2.
+- even addresses: (resp. odd addresses)  those that are equal to $0$ mod $2d$ (resp. $d$ mod $2d$)
+- the class of even cache sets (resp. odd cache sets): cache sets to which even (resp. odd) addresses are mapped.
+steps:
+1. allocate a contiguous buffer $B$ of b bytes
+2. sleep briefly (to build up credit with Xen’s scheduler).
+3. prime: read all of $B$ to make sure it’s fully cached
+4. trigger: busy-loop until the CPU’s cycle counter jumps by a large value. (This means our VM was preempted by the Xen scheduler, hopefully in favor of the sender VM.)
+5. probe: measure the time it takes to read all even ad- dresses in $B$, likewise for the odd addresses. Decide “0” iff the difference is positive.
